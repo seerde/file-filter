@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
-const os = require('os');
+const os = require("os");
 const osName = os.type();
 let win;
 function createWindow() {
@@ -31,8 +31,12 @@ app.on("activate", () => {
 ipcMain.on("keyword", (e, item) => {
   const tmpObj = {
     keyword: item["keyword"],
-    targetFolder: osName.includes("Darwin") ? item["targetFolder"].replace("/" + item["tmpT"], "") : item["targetFolder"].replace("\\" + item["tmpT"], ""),
-    finalFolder: osName.includes("Darwin") ? item["finalFolder"].replace("/" + item["tmpF"], "") : item["finalFolder"].replace("\\" + item["tmpF"], ""),
+    targetFolder: osName.includes("Darwin")
+      ? item["targetFolder"].replace("/" + item["tmpT"], "")
+      : item["targetFolder"].replace("\\" + item["tmpT"], ""),
+    finalFolder: osName.includes("Darwin")
+      ? item["finalFolder"].replace("/" + item["tmpF"], "")
+      : item["finalFolder"].replace("\\" + item["tmpF"], ""),
   };
   console.log(tmpObj);
   let myPromise = new Promise(function (resolve, reject) {
@@ -42,28 +46,63 @@ ipcMain.on("keyword", (e, item) => {
       } else {
         resolve(res);
       }
-    })
+    });
   });
-  myPromise.then((e) => {
-    // console.log(dialog.showMessageBox(win, { message: "Job's Done!" }));
-    // console.log("Job's Done!");
-  }, (err) => {
-    console.log(err)
-  })
+  myPromise.then(
+    (e) => {
+      // console.log(dialog.showMessageBox(win, { message: "Job's Done!" }));
+      // console.log("Job's Done!");
+    },
+    (err) => {
+      console.log(err);
+    }
+  );
   // fileFilter(tmpObj);
 });
 
 function fileFilter({ keyword, targetFolder, finalFolder }, _callback) {
   let fs = require("fs");
+  let fse = require("fs-extra");
   const loopFolder = (preDir, dir, keyword, finalDir, _callback2) => {
-    let newDir = osName.includes("Darwin") ? `${preDir}/${dir}` : `${preDir}\\${dir}`;
+    let newDir = osName.includes("Darwin")
+      ? `${preDir}/${dir}`
+      : `${preDir}\\${dir}`;
     fs.readdir(newDir, (err, files) => {
       files.forEach((e) => {
-        if (!e.includes(".")) {
+        if (e.includes(keyword) && !e.includes(".")) {
+          let finalDirWithName = osName.includes("Darwin")
+            ? `${finalDir}/${keyword}/`
+            : `${finalDir}\\${keyword}\\`;
+          let sourceDir = osName.includes("Darwin")
+            ? `${newDir}/${e}`
+            : `${newDir}\\${e}`;
+          console.log(`${e} ***`);
+          console.log(`${finalDirWithName} **`);
+          if (!fs.existsSync(`${finalDirWithName}/${e}`)) {
+            fs.mkdir(`${finalDirWithName}/${e}`, (err) => {
+              if (err) throw err;
+              console.log("created final folder");
+            });
+          }
+          fse.copySync(
+            sourceDir,
+            `${finalDirWithName}/${e}`,
+            { overwrite: true },
+            (err) => {
+              if (err) {
+                console.error(err);
+              } else {
+                console.log("coppied folder");
+              }
+            }
+          );
+        } else if (!e.includes(".") && !e.includes(keyword)) {
           loopFolder(newDir, e, keyword, finalFolder, _callback2);
         } else {
           if (e.includes(keyword)) {
-            let finalDirWithName = osName.includes("Darwin") ? `${finalDir}/${keyword}/` : `${finalDir}\\${keyword}\\`;
+            let finalDirWithName = osName.includes("Darwin")
+              ? `${finalDir}/${keyword}/`
+              : `${finalDir}\\${keyword}\\`;
             console.log(finalDirWithName);
             if (!fs.existsSync(finalDirWithName)) {
               fs.mkdir(finalDirWithName, (err) => {
@@ -71,10 +110,14 @@ function fileFilter({ keyword, targetFolder, finalFolder }, _callback) {
                 console.log("created final folder");
               });
             }
-            fs.copyFile(osName.includes("Darwin") ? `${newDir}/${e}` : `${newDir}\\${e}`, finalDirWithName + e, (err) => {
-              if (err) throw err;
-              console.log("coppied");
-            });
+            fs.copyFile(
+              osName.includes("Darwin") ? `${newDir}/${e}` : `${newDir}\\${e}`,
+              finalDirWithName + e,
+              (err) => {
+                if (err) throw err;
+                console.log("coppied file");
+              }
+            );
           }
         }
       });
@@ -88,14 +131,17 @@ function fileFilter({ keyword, targetFolder, finalFolder }, _callback) {
       } else {
         resolve(res);
       }
-    })
+    });
   });
-  myPromise.then((e) => {
-    console.log(dialog.showMessageBox(win, { message: "Job's Done!" }));
-    console.log("Job's Done!");
-  }, (err) => {
-    console.log(err)
-  })
+  myPromise.then(
+    (e) => {
+      console.log(dialog.showMessageBox(win, { message: "Job's Done!" }));
+      console.log("Job's Done!");
+    },
+    (err) => {
+      console.log(err);
+    }
+  );
   // loopFolder(targetFolder, "", keyword, finalFolder);
   _callback(null, { state: true });
 }
